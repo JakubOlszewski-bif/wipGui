@@ -32,6 +32,12 @@ class winBuild:
         self.container = Frame(self.notepad)
         self.curMaster = self.container
         self.optionalPage = False
+        ### 
+        #Temporary Checkbutton, for bug testing. If it's marked, the "Proceed" button runs the command with subprocess()
+        self.rcValue = IntVar()
+        self.runCommand = Checkbutton(self.curMaster, text = "'Proceed' button runs the command", variable = self.rcValue, onvalue=1, offvalue = 0)
+        self.runCommand.pack()
+        ###
         for ele in wigList:
             if ele[0] == "combo":
                 w = comboLis(self.curMaster,ele)
@@ -87,7 +93,8 @@ class winBuild:
         print(finalCommand)
         print(flatWidgetList)
         master.destroy()
-        #subprocess.run(finalCommand.split())
+        if self.rcValue.get() == 1:
+            subprocess.run(finalCommand.split())
         
 
 class comboLis(Frame):
