@@ -1,7 +1,7 @@
 from importable import importableFormats,importableTypes,metrics
 
 """
-commandWig is a python library of instructions to build widgets for commands used in qiime2. It's used by winBuilder.py to create windows for each command.
+commandWig - a python library of instructions to build widgets for commands used in qiime2. It's used by winBuilder.py to create windows for each command.
 
 combobox : ["combo",<label>,<list of elements (first is default)>]
 fileChose : ["fChoose", <label>]
