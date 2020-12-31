@@ -7,7 +7,7 @@ def popupWig(master,widget,key):
     :type widget: tuple
 
     :param key: name of the command 
-    :type key: str
+    :type key: str 
 
     """
     newWindow = Toplevel(master)
