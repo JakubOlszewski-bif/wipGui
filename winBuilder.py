@@ -7,6 +7,12 @@ def focus_next_window(event):
         event.widget.tk_focusNext().focus()
         return("break")
 
+def carryOutCommand(reqValues,optValues,key,rcValue = 0):
+    flatWidgetList = [item for sublist in reqValues for item in sublist] + [item for sublist in optValues for item in sublist]
+    finalCommand = "qiime " + key + ' ' + ' '.join(flatWidgetList)
+    if rcValue == 1:
+        subprocess.run(finalCommand.split())
+
 class winBuild:
     """A builder which creates a window based on a list of provided widgets.
 
@@ -25,6 +31,12 @@ class winBuild:
     def __init__(self,master,wigList,key):
         self.reqWig = []
         self.optWig = []
+        ###
+        #Values necessary to add output to the pipeline-tree
+        self.reqValues = []
+        self.optValues = []
+        self.key = key
+        ###
         self.widgets = self.reqWig
         self.comLab = Label(master,text="qiime "+key)
         self.comLab.pack()
@@ -68,6 +80,7 @@ class winBuild:
                 self.newPage = Frame(self.notepad)
                 self.curMaster = self.newPage
                 self.optionalPage = True
+            w.config(bg = "#f0f0f0")
         self.notepad.add(self.container,text="Required")
         if self.optionalPage:
             self.notepad.add(self.newPage, text="Optional")
@@ -77,24 +90,30 @@ class winBuild:
 
     def pullValues(self,key,master):
         """Function to pull all values from the widgets in created window. Also checks if all required spaces are filled.
+        Also the function highlights first unfilled required widget with a red border. 
+
+        :param flatWidgetList: list of widgets that had parameters inserted into them, converted into an easy-to-join list 
+        :type flatWidgetList: list
         """
-        storedReq = []
-        storedOpt = []
         for widg in self.reqWig:
             w = widg.getValue()
             if '' in w:
                 print("Fill all required spaces!")
+                # Reset the colour of widgets to default, then mark unfilled one as red
+                for i in self.reqWig: i.config(bg = "#f0f0f0")
+                self.reqWig[self.reqWig.index(widg)].config(bg = "red")
                 return True
-            storedReq.append(w)
+            self.reqValues.append(w)
         for widg in self.optWig:
-            storedOpt.append(widg.getValue())
-        flatWidgetList = [item for sublist in storedReq for item in sublist] + [item for sublist in storedOpt for item in sublist]
-        finalCommand = "qiime " + key + ' ' + ' '.join(flatWidgetList)
-        print(finalCommand)
-        print(flatWidgetList)
+            w = widg.getValue()
+            if '' not in w:
+                self.optValues.append(widg.getValue())
+        carryOutCommand(self.reqValues,self.optValues,key,self.rcValue.get())
+        # flatWidgetList = [item for sublist in self.reqValues for item in sublist] + [item for sublist in self.optValues for item in sublist]
+        # finalCommand = "qiime " + key + ' ' + ' '.join(flatWidgetList)
         master.destroy()
-        if self.rcValue.get() == 1:
-            subprocess.run(finalCommand.split())
+        # if self.rcValue.get() == 1:
+        #     subprocess.run(finalCommand.split())
         
 
 class comboLis(Frame):
@@ -121,7 +140,6 @@ class fileChoice(Frame):
     """
     def __init__(self,master,wigList):
         super().__init__(master = master,bd = 2)
-        #self.master = master
         self.cName = wigList[1]
         self.Lab = Label(self,text = self.cName,width = 25)
         self.Lab.pack(side = LEFT,fill = BOTH)
