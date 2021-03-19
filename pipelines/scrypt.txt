@@ -1,0 +1,72 @@
+tools import
+Required:
+--type SampleData[PairedEndSequencesWithQuality] --input-path demulti_pairend/ --output-path demux-paired-end.qza 
+Optional:
+--input-format CasavaOneEightLanelessPerSampleDirFmt 
+###
+demux summarize
+Required:
+--i-data demux-paired-end.qza --p-n 10000 --o-visualization results/demux-paired-end.qza.qzv 
+Optional:
+
+###
+dada2 denoise-single
+Required:
+--i-demultiplexed-seqs demux-paired-end.qza --p-trunc-len 250 --o-table table.qza --o-representative-sequences rep-seqs.qza --o-denoising-stats stats.qza 
+Optional:
+--p-trim-left 13 --p-max-ee 2.0 --p-trunc-q 2 --p-pooling-method independent --p-chimera-method consensus --p-min-fold-parent-over-abundance 1.0 --p-n-threads 1 --p-n-reads-learn 1000000 --p-hashed-feature-ids True 
+###
+metadata tabulate
+Required:
+--m-input-file stats.qza --p-page-size 100 --o-visualization results/denoising-stats.qzv 
+Optional:
+
+###
+feature-table summarize
+Required:
+--i-table table.qza --o-visualization results/table.qzv 
+Optional:
+--m-sample-metadata-file sample-metadata.tsv 
+###
+feature-table tabulate-seqs
+Required:
+--i-data rep-seqs.qza --o-visualization results/rep-seqs.qzv 
+Optional:
+
+###
+metadata tabulate
+Required:
+--m-input-file sample-metadata.tsv --p-page-size 100 --o-visualization results/tabulated-sample-metadata.qzv 
+Optional:
+
+###
+alignment mafft
+Required:
+--i-sequences rep-seqs.qza --p-n-threads 1 --p-parttree False --o-alignment aligned-rep-seqs.qza 
+Optional:
+
+###
+alignment mask
+Required:
+--i-alignment aligned-rep-seqs.qza --p-max-gap-frequency 1.0 --p-min-conservation 0.4 --o-masked-alignment masked-aligned-rep-seqs.qza 
+Optional:
+
+###
+phylogeny fasttree
+Required:
+--i-alignment masked-aligned-rep-seqs.qza --p-n-threads 1 --o-tree unrooted-tree.qza 
+Optional:
+
+###
+phylogeny midpoint-root
+Required:
+--i-tree unrooted-tree.qza --o-rooted-tree rooted-tree.qza 
+Optional:
+
+###
+diversity core-metrics-phylogenetic
+Required:
+--i-phylogeny rooted-tree.qza --i-table table.qza --p-sampling-depth 1109 --m-metadata-file sample_metadata.tsv --output-dir core-metrics-results 
+Optional:
+
+###

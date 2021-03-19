@@ -37,3 +37,6 @@ metrics = ('','shannon', 'goods_coverage', 'brillouin_d', 'heip_e',
     'ace', 'menhinick', 'lladser_pe', 'fisher_alpha', 'margalef',
     'mcintosh_d', 'pielou_e', 'dominance', 'simpson_e', 'singles',
     'gini_index', 'simpson')
+
+TrueFalse = (True,False)
+FalseTrue = (False,True)
