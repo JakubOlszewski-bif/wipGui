@@ -170,6 +170,11 @@ def down():
     if current:
         tree.move(current, tree.parent(current),tree.index(current)+1)
 
+# Delete selected
+def delete():
+    current = tree.selection()
+    if current:
+        tree.delete(current)
 
 ## Container for pipeline window control buttons
 controlFrame = Frame(master = root)
@@ -187,15 +192,14 @@ upButton.grid(row = 2, column = 1,sticky = E)
 downButton = Button(master = controlFrame, text = "Move down", command = down)
 downButton.grid(row = 2, column = 2, sticky = W)
 
+delButton = Button(master = controlFrame, text = "Delete", command = delete)
+delButton.grid(row = 3, column = 1, sticky = E)
 
 # Save pipeline to file
 def saveTree():
-    #fileName = "test.txt"
-    #completeName = path.join(SAVE_PATH,fileName)
     saveFile = filedialog.asksaveasfile(mode = 'w', defaultextension = ".txt")
     if saveFile is None:
         return
-    #saveFile = open(completeName, "w")
     mainBranches = tree.get_children()
     ############
     marker = False
