@@ -19,6 +19,10 @@ class emptyClass():
 
 pipelineTreeContent = emptyClass()
 
+# Create/empty-out log.file
+logfile = open("log.file","w")
+logfile.close()
+
 # Create popup window with command
 def popupWig(master,widget,key):
     """Uses winBuild to create a pop-up window with instructions from widget and key.
@@ -30,14 +34,14 @@ def popupWig(master,widget,key):
     :type key: str 
     """
     newWindow = Toplevel(master)
-    newWindow.title("New Window")
+    newWindow.title("{}".format(key))
     global pipelineTreeContent
     pipelineTreeContent = winBuild(newWindow,widget,key)
 
-# Main Menu 
+# Main Menu set-up
 root = Tk()
 root.title("Main Menu")
-root.geometry("500x400")
+root.geometry("700x500")
 menuBar = Menu(root)
 
 # Menu Bar 
@@ -51,16 +55,23 @@ menuBar.add_cascade(label = "Commands",menu = commands)
 
 root.config(menu=menuBar)
 
+# Frame for mainMenu elements
+mmFrame = Frame(root)
+mmFrame.config(background = "green")
+mmFrame.pack()
+
 ### Pipeline section ###
 
 # TreeView set-up
-tree = ttk.Treeview(root, columns = ("Stuff"))
+tree = ttk.Treeview(mmFrame, columns = ("Stuff"))
 tree.heading("#0", text = "Command")
 tree.heading("#1", text = "Content")
-tree.pack() 
+tree.grid(row = 0, column = 0)
 
 # Add last command to tree
 def addCommandToTree(key,reqWidgets,optWidgets):
+    if reqWidgets == []:
+        return
     global TREE_COMMAND_INDEX
     TREE_COMMAND_INDEX+=1
     parentID = tree.insert(parent = "", index = "end", text = key, values = "")
@@ -78,9 +89,6 @@ def handleCommand():
     if pipelineTreeContent.key:
         addCommandToTree(pipelineTreeContent.key,pipelineTreeContent.reqValues,pipelineTreeContent.optValues)
         pipelineTreeContent = emptyClass()
-
-showMeContentForTree = Button(master = root, text = "Add last command to pipeline", command = handleCommand)
-showMeContentForTree.pack()
 
 # Edit selected content in pipeline
 def selectbranch(event):
@@ -113,9 +121,29 @@ def selectbranch(event):
 
 tree.bind('<Double-1>', selectbranch)
 
+# Manage communication between bash and program
+def communicate(processChild):
+    """
+    Handle return codes form processes, produce appropriate messages and write error messages to log.file
+    """
+    rc = processChild.returncode
+    if rc != 0:
+        with open("log.file","w") as logfile:
+            logfile.write(processChild.stderr.decode("utf-8"))
+        messageBox.config(state=NORMAL)
+        messageBox.insert(END, " ".join(processChild[0:3]),"ended in an error. For more information check log.file","error")
+        messageBox.config(state=NORMAL)
+        return
+    else:
+        messageBox.config(state=NORMAL)
+        messageBox.insert(END, "Success!\n","success")
+        messageBox.config(state=NORMAL)
+
+
 # Run pipeline in bash
 def runTree():
-    """Function for "Run pipeline" button in the pipeline widget. Pull all functions and parameters in the tree and passes them to bash.
+    """
+    Function for "Run pipeline" button in the pipeline widget. Pull all functions and parameters in the tree and passes them to bash.
     Currently only prints commands instead of running in bash. 
     Allows starting pipeline from selected command instead of from the beginning.
     """
@@ -148,13 +176,21 @@ def runTree():
         commandsInPipeline.append(command)
     for printoutstuff in commandsInPipeline:
         print(printoutstuff,end='\n')
-        '''
-        if rc != 0:
-            return
         lista = printoutstuff.split()
-        child = subprocess.run(lista, stderr = subprocess.Pipe)
+        messageBox.config(state=NORMAL)
+        messageBox.insert(END, "Running " + " ".join(lista[:3]) + "...\n")
+        messageBox.config(state=NORMAL)
+        '''
+        child = subprocess.run(lista, stderr = subprocess.PIPE)
+        communicate(child)
+        ###
         rc = child.returncode
-        
+        if rc != 0:
+            logfile = open("log.file","w")
+            logfile.write(child.stderr.decode("utf-8"))
+            logfile.close()
+            print(" ".join(lista[0:3]),"ended in an error. For more information check log.file")
+            return
         '''
     print("\n\n")
 
@@ -176,24 +212,9 @@ def delete():
     if current:
         tree.delete(current)
 
-## Container for pipeline window control buttons
-controlFrame = Frame(master = root)
-controlFrame.pack()
-
-sPC_Value = IntVar() # Interger value for startingPointCheck
-startingPointCheck = Checkbutton(master = controlFrame, text = "Start from selected", variable = sPC_Value, onvalue=1, offvalue = 0)
-startingPointCheck.grid(row = 1, column = 2)
-runButton = Button(master = controlFrame, text = "Run", command = runTree)
-runButton.grid(row = 1, column = 1)
-
-upButton = Button(master = controlFrame, text = "Move up", command = up)
-upButton.grid(row = 2, column = 1,sticky = E)
-
-downButton = Button(master = controlFrame, text = "Move down", command = down)
-downButton.grid(row = 2, column = 2, sticky = W)
-
-delButton = Button(master = controlFrame, text = "Delete", command = delete)
-delButton.grid(row = 3, column = 1, sticky = E)
+# Delete all
+def deleteAll():
+    tree.delete(*tree.get_children())
 
 # Save pipeline to file
 def saveTree():
@@ -201,9 +222,7 @@ def saveTree():
     if saveFile is None:
         return
     mainBranches = tree.get_children()
-    ############
     marker = False
-    ############
     for commandIds in mainBranches:
         saveFile.write(commandIds.split("$")[0] + "\n")
         command = tree.get_children(commandIds)
@@ -225,9 +244,6 @@ def saveTree():
         marker = False
         saveFile.write("\n###\n")
     saveFile.close()
-
-saveButton = Button(master = root, text = "Save", command = saveTree)
-saveButton.pack()
 
 # Open pipeline from file
 def openTree():
@@ -273,8 +289,55 @@ def openTree():
             action = action%6 + 1
     fileTree.close()
 
-openPipeButton = Button(master = root, text = "Open", command = openTree)
-openPipeButton.pack()
+## Container for pipeline window control buttons
+controlFrame = Frame(master = mmFrame)
+controlFrame.config(background = "red")
+controlFrame.grid(row = 0, column = 1)
+
+showMeContentForTree = Button(master = controlFrame, text = "Add last command to pipeline", command = handleCommand)
+showMeContentForTree.grid(row = 1, column = 1, columnspan = 2, sticky = 'nesw')
+
+sPC_Value = IntVar() # Interger value for startingPointCheck
+startingPointCheck = Checkbutton(master = controlFrame, text = "Start from selected", variable = sPC_Value, onvalue=1, offvalue = 0, width = 15)
+startingPointCheck.grid(row = 2, column = 2, sticky = 'nesw')
+
+runButton = Button(master = controlFrame, text = "Run", command = runTree, width = 15)
+runButton.grid(row = 2, column = 1, sticky = 'nesw')
+
+upButton = Button(master = controlFrame, text = "Move up", command = up, width = 15)
+upButton.grid(row = 3, column = 1, sticky = 'nesw')
+
+downButton = Button(master = controlFrame, text = "Move down", command = down, width = 15)
+downButton.grid(row = 3, column = 2, sticky = 'nesw')
+
+delButton = Button(master = controlFrame, text = "Delete", command = delete, width = 15)
+delButton.grid(row = 4, column = 1, sticky = 'nesw')
+
+delAllButton = Button(master = controlFrame, text = "Delete all", command = deleteAll, width = 15)
+delAllButton.grid(row = 4, column = 2, sticky = 'nesw')
+
+saveButton = Button(master = controlFrame, text = "Save", command = saveTree, width = 15)
+saveButton.grid(row = 5, column = 1, sticky = 'nesw')
+
+openPipeButton = Button(master = controlFrame, text = "Open", command = openTree, width = 15)
+openPipeButton.grid(row = 5, column = 2, sticky = 'nesw')
 ### End of pipeline section ###
+
+### Message box ###
+# Text box for messages
+messageBox = Text(master = mmFrame, height = 15)
+messageBox.grid(row = 1, column = 0, columnspan = 2)
+messageBox.config(state = DISABLED)
+
+# Fonts for messages
+messageBox.tag_config("error", foreground = "red")
+messageBox.tag_config("success", foreground = "green")
+
+# Scrollbar for messageBox
+messageBoxScrollbar = ttk.Scrollbar(master = mmFrame, command = messageBox.yview)
+messageBoxScrollbar.grid(row = 1, column = 1, sticky = N + S + E)
+messageBox['yscrollcommand'] = messageBoxScrollbar.set
+
+### End of message box section ###
 
 root.mainloop()
