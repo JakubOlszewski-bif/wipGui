@@ -3,15 +3,11 @@ from tkinter import ttk, filedialog
 from commandWig import commandWig
 import subprocess
 
+LABEL_WIDTH = 35
+
 def focus_next_window(event):
         event.widget.tk_focusNext().focus()
         return("break")
-
-def carryOutCommand(reqValues,optValues,key,rcValue = 0):
-    flatWidgetList = [item for sublist in reqValues for item in sublist] + [item for sublist in optValues for item in sublist]
-    finalCommand = "qiime " + key + ' ' + ' '.join(flatWidgetList)
-    if rcValue == 1:
-        subprocess.run(finalCommand.split())
 
 class winBuild:
     """A builder which creates a window based on a list of provided widgets.
@@ -44,8 +40,7 @@ class winBuild:
         self.container = Frame(self.notepad)
         self.curMaster = self.container
         self.optionalPage = False
-        ### 
-        #Temporary Checkbutton, for bug testing. If it's marked, the "Proceed" button runs the command with subprocess()
+        ###
         self.rcValue = IntVar()
         self.runCommand = Checkbutton(self.curMaster, text = "'Proceed' button runs the command", variable = self.rcValue, onvalue=1, offvalue = 0)
         self.runCommand.pack()
@@ -85,14 +80,12 @@ class winBuild:
         if self.optionalPage:
             self.notepad.add(self.newPage, text="Optional")
         self.notepad.pack()
-        self.showMe = Button(master,text='Proceed',command=lambda key=key: self.pullValues(key,master))
-        self.showMe.pack()
 
     def pullValues(self,key,master):
         """Function to pull all values from the widgets in created window. Also checks if all required spaces are filled.
-        Also the function highlights first unfilled required widget with a red border. 
+        Also the function highlights first unfilled required widget with a red border.
 
-        :param flatWidgetList: list of widgets that had parameters inserted into them, converted into an easy-to-join list 
+        :param flatWidgetList: list of widgets that had parameters inserted into them, converted into an easy-to-join list
         :type flatWidgetList: list
         """
         for widg in self.reqWig:
@@ -102,19 +95,14 @@ class winBuild:
                 # Reset the colour of widgets to default, then mark unfilled one as red
                 for i in self.reqWig: i.config(bg = "#f0f0f0")
                 self.reqWig[self.reqWig.index(widg)].config(bg = "red")
-                return True
+                return False
             self.reqValues.append(w)
         for widg in self.optWig:
             w = widg.getValue()
             if '' not in w:
                 self.optValues.append(widg.getValue())
-        carryOutCommand(self.reqValues,self.optValues,key,self.rcValue.get())
-        # flatWidgetList = [item for sublist in self.reqValues for item in sublist] + [item for sublist in self.optValues for item in sublist]
-        # finalCommand = "qiime " + key + ' ' + ' '.join(flatWidgetList)
-        master.destroy()
-        # if self.rcValue.get() == 1:
-        #     subprocess.run(finalCommand.split())
-        
+        return (self.reqValues,self.optValues,key,self.rcValue.get())
+
 
 class comboLis(Frame):
     """Widget with a label and a combobox.
@@ -122,12 +110,12 @@ class comboLis(Frame):
     def __init__(self,master,wigList):
         super().__init__(master = master,bd = 2)
         self.cName = wigList[1]
-        self.Lab = Label(self,text = self.cName,width= 25)
+        self.Lab = Label(self,text = self.cName,width= LABEL_WIDTH)
         self.dpList = ttk.Combobox(self,values = wigList[2],state="readonly",width = 45)
         self.dpList.current(0)
         self.Lab.pack(side = LEFT,fill = BOTH)
         self.dpList.pack(fill = BOTH,side=RIGHT,expand = True)
-    
+
     def getValue(self):
         commandLabel,argument = self.cName,self.dpList.get()
         if argument == '':
@@ -141,7 +129,7 @@ class fileChoice(Frame):
     def __init__(self,master,wigList):
         super().__init__(master = master,bd = 2)
         self.cName = wigList[1]
-        self.Lab = Label(self,text = self.cName,width = 25)
+        self.Lab = Label(self,text = self.cName,width = LABEL_WIDTH)
         self.Lab.pack(side = LEFT,fill = BOTH)
         self.fVal = ''
         self.fButton = Button(self,text='Choose file',command=self.giveFile)
@@ -168,10 +156,10 @@ class fileChoice(Frame):
 class importChoose(Frame):
     """Widget for 'qiime tools import' command, which requires an option to choose a file OR directory
     """
-    def __init__(self,master,wigList):        
+    def __init__(self,master,wigList):
         super().__init__(master = master,bd = 2)
         self.cName = wigList[1]
-        self.Lab = Label(self,text = self.cName,width = 25)
+        self.Lab = Label(self,text = self.cName,width = LABEL_WIDTH)
         self.Lab.pack(side = LEFT,fill = BOTH)
         self.fVal = ''
         self.fButton = Button(self,text='Choose file',command=self.giveFile)
@@ -180,7 +168,7 @@ class importChoose(Frame):
         self.fText.bind("<Tab>",focus_next_window)
         self.fButton.pack(side = LEFT)
         self.dirButton.pack(side = LEFT)
-        self.fText.pack(side = BOTTOM, fill = BOTH, expand = True) 
+        self.fText.pack(side = BOTTOM, fill = BOTH, expand = True)
 
     def giveFile(self):
         """Function for the button. Opens a dialog window where user can select a file, then inserts that files directory
@@ -189,15 +177,15 @@ class importChoose(Frame):
         self.fVal = filedialog.askopenfilenames(initialdir = '/', title = "Select file", filetypes = (("all files","*.*"),("txt files","*.txt")))
         if self.fVal != '':
             self.fText.delete(0.0,END)
-            self.fText.insert(0.0,self.fVal)      
-    
+            self.fText.insert(0.0,self.fVal)
+
     def giveDir(self):
         """Function for the button. Opens a dialog window where user can choose a directory
         """
         self.fVal = filedialog.askdirectory()
         self.fText.delete(0.0,END)
         self.fText.insert(0.0,self.fVal)
-    
+
     def getValue(self):
         commandLabel,argument = self.cName,self.fText.get(0.0,END).strip()
         if argument == '':
@@ -207,12 +195,12 @@ class importChoose(Frame):
 
 
 class fileName(Frame):
-    """Widget with a label and a text box.
+    """ Widget with a label and a text box.
     """
     def __init__(self,master,wigList):
         super().__init__(master = master,bd = 2)
         self.cName = wigList[1]
-        self.Lab = Label(self,text = self.cName,width = 25)
+        self.Lab = Label(self,text = self.cName,width = LABEL_WIDTH)
         self.Lab.pack(side = LEFT,fill = BOTH)
         self.fText = Text(self,width=28, height = 1, wrap = NONE)
         self.fText.bind("<Tab>",focus_next_window)
@@ -231,7 +219,7 @@ class dirName(Frame):
     def __init__(self,master,wigList):
         super().__init__(master = master,bd = 2)
         self.cName = wigList[1]
-        self.Lab = Label(self,text = self.cName,width = 25)
+        self.Lab = Label(self,text = self.cName,width = LABEL_WIDTH)
         self.Lab.pack(side = LEFT,fill = BOTH)
         self.fDir = ''
         self.fButton = Button(self,text = "Choose directory", command = self.giveDir)
@@ -260,7 +248,7 @@ class intFloSpinbox(Frame):
     def __init__(self,master,wigList):
         super().__init__(master = master,bd = 2)
         self.cName = wigList[1]
-        self.Lab = Label(self,text = self.cName,width = 25)
+        self.Lab = Label(self,text = self.cName,width = LABEL_WIDTH)
         self.Lab.pack(side = LEFT,fill = BOTH)
         var = StringVar(self)
         if wigList[2]:
@@ -270,7 +258,7 @@ class intFloSpinbox(Frame):
             var.set(wigList[3])
             self.sBox = Spinbox(self,from_=0,to=1000000000, textvariable=var,increment=0.1, format="%.1f")
         self.sBox.pack(side = RIGHT,fill = BOTH, expand = True)
-    
+
     def getValue(self):
         commandLabel,argument = self.cName,self.sBox.get()
         if argument == '':
@@ -295,4 +283,3 @@ if __name__ == "__main__":
     ["importChoose","--import-choose-test"])
     wind = winBuild(root,test,"test")
     root.mainloop()
-

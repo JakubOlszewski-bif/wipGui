@@ -1,5 +1,5 @@
 from winBuilder import *
-from os import path, makedirs
+from os import path, makedirs, popen
 
 TREE_COMMAND_INDEX = 0 #Index for pipeline-tree widget, used to mark each command's key so multiple same commands can be in the tree
 SAVE_PATH = "pipelines"
@@ -30,21 +30,34 @@ def popupWig(master,widget,key):
     :param widget: a nested list of widgets used in the pop-up window for that command
     :type widget: tuple
 
-    :param key: name of the command 
-    :type key: str 
+    :param key: name of the command
+    :type key: str
     """
+    def doTheThing(key, master):
+        global pipelineTreeContent
+        windowValues = pipelineTreeContent.pullValues(key, master)
+        if not windowValues:
+            return
+        reqValues, optValues, key, rcVal = windowValues
+        newWindow.destroy()
+        carryOutCommand(reqValues,optValues,key, rcVal)
     newWindow = Toplevel(master)
     newWindow.title("{}".format(key))
     global pipelineTreeContent
     pipelineTreeContent = winBuild(newWindow,widget,key)
+    proceedButton = Button(newWindow,text='Proceed',command=lambda things = (key,master): doTheThing(things[0],things[1]))
+    proceedButton.pack()
+
+
+
 
 # Main Menu set-up
 root = Tk()
 root.title("Main Menu")
-root.geometry("700x500")
+root.geometry("690x400")
 menuBar = Menu(root)
 
-# Menu Bar 
+# Menu Bar
 commands = Menu(menuBar,tearoff=0)
 for package in commandWig.keys():
     subMenu = Menu(commands,tearoff=0)
@@ -57,7 +70,6 @@ root.config(menu=menuBar)
 
 # Frame for mainMenu elements
 mmFrame = Frame(root)
-mmFrame.config(background = "green")
 mmFrame.pack()
 
 ### Pipeline section ###
@@ -83,7 +95,7 @@ def addCommandToTree(key,reqWidgets,optWidgets):
             tree.insert(parent = subParentID, index = "end", text = parameter, values = value)
 
 def handleCommand():
-    """Function for the button; uses addCommandToTree to add command to tree, then resets pipelineTreeContent to empty state 
+    """Function for the button; uses addCommandToTree to add command to tree, then resets pipelineTreeContent to empty state
     """
     global pipelineTreeContent
     if pipelineTreeContent.key:
@@ -92,19 +104,19 @@ def handleCommand():
 
 # Edit selected content in pipeline
 def selectbranch(event):
-    """Double-click event; when you doubleclick after selecting a cell with content, 
+    """Double-click event; when you doubleclick after selecting a cell with content,
     it creates an Edit Window, where you can change the selected value.
     """
     # Create editWindow only for columns with content
     clmn = tree.identify_column(event.x)
     if clmn != "#1":
-        return 
+        return
     content = tree.selection()
     try:
         treeItem = tree.item(content)
         treeItemValue = treeItem["values"][0]
     except IndexError:
-        return 
+        return
     #print("content: ",content, "\ntreeItem: ", treeItem)
     editWindow = Toplevel(root)
     editWindow.title("Edit parameter")
@@ -121,32 +133,45 @@ def selectbranch(event):
 
 tree.bind('<Double-1>', selectbranch)
 
-# Manage communication between bash and program
-def communicate(processChild):
-    """
-    Handle return codes form processes, produce appropriate messages and write error messages to log.file
-    """
-    rc = processChild.returncode
-    if rc != 0:
-        with open("log.file","w") as logfile:
-            logfile.write(processChild.stderr.decode("utf-8"))
-        messageBox.config(state=NORMAL)
-        messageBox.insert(END, " ".join(processChild[0:3]),"ended in an error. For more information check log.file","error")
-        messageBox.config(state=NORMAL)
-        return
-    else:
-        messageBox.config(state=NORMAL)
-        messageBox.insert(END, "Success!\n","success")
-        messageBox.config(state=NORMAL)
+def saveError(errorMessage):
+    """Write error message to log.file"""
+    with open("log.file", "w") as lFile:
+        lFile.write(errorMessage.decode("utf-8"))
 
+def writeMessage(message, tag = ''):
+    """Write message to messageBox widget"""
+    messageBox.config(state=NORMAL)
+    messageBox.insert(END, message, tag)
+    messageBox.config(state=DISABLED)
+
+# Run single command
+def carryOutCommand(reqValues,optValues,key, rcVal = 0):
+    if rcVal == 0:
+        return
+    flatWidgetList = [item for sublist in reqValues for item in sublist] + [item for sublist in optValues for item in sublist]
+    finalCommand = "qiime " + key + ' ' + ' '.join(flatWidgetList)
+    writeMessage("Running " + "qiime " + " ".join(flatWidgetList[:2]) + "...\n")
+    messageBox.update_idletasks()
+    process = subprocess.Popen(finalCommand, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell = True)
+    (stout, sterr) = process.communicate()
+    print("out: ", stout, "\nerr: ", sterr)
+    if sterr:
+        writeMessage("Command ended in an error. Check log.file for more info\n", "error")
+        saveError(sterr)
+    elif stout:
+        writeMessage("Done\n", "success")
+    else:
+        writeMessage("Unexpected error: no stderr or stdout produced\n", "error")
+    writeMessage("### Single command finished ###\n", "success")
 
 # Run pipeline in bash
 def runTree():
     """
     Function for "Run pipeline" button in the pipeline widget. Pull all functions and parameters in the tree and passes them to bash.
-    Currently only prints commands instead of running in bash. 
+    Currently only prints commands instead of running in bash.
     Allows starting pipeline from selected command instead of from the beginning.
     """
+    commandsInPipeline = []
     mainBranches = tree.get_children()
     sP = 0 # Starting Point
     if sPC_Value.get() == 1:
@@ -158,8 +183,7 @@ def runTree():
             sP = mainBranches.index(currentSel)
         except ValueError:
             pass
-    commandsInPipeline = []
-    #rc = 0
+
     for branch in mainBranches[sP:]:
         command = 'qiime'
         command = command + ' ' + tree.item(branch)["text"]
@@ -174,26 +198,23 @@ def runTree():
             else:
                 command = command + ' ' + currentChild["text"] + ' ' + str(currentChild["values"][0])
         commandsInPipeline.append(command)
-    for printoutstuff in commandsInPipeline:
-        print(printoutstuff,end='\n')
-        lista = printoutstuff.split()
-        messageBox.config(state=NORMAL)
-        messageBox.insert(END, "Running " + " ".join(lista[:3]) + "...\n")
-        messageBox.config(state=NORMAL)
-        '''
-        child = subprocess.run(lista, stderr = subprocess.PIPE)
-        communicate(child)
-        ###
-        rc = child.returncode
-        if rc != 0:
-            logfile = open("log.file","w")
-            logfile.write(child.stderr.decode("utf-8"))
-            logfile.close()
-            print(" ".join(lista[0:3]),"ended in an error. For more information check log.file")
-            return
-        '''
-    print("\n\n")
 
+    for com in commandsInPipeline:
+        commandList = com.split()
+        writeMessage("Running " + " ".join(commandList[:3]) + "...\n")
+        messageBox.update_idletasks()
+        process = subprocess.Popen(com, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell = True)
+        (stout, sterr) = process.communicate()
+        #print("out: ", stout, "\nerr: ", sterr)
+        if sterr:
+            writeMessage("{} ended in error. Check log.file for more info\n".format(' '.join(commandList[:3])), "error")
+            saveError(sterr)
+            break
+        elif stout:
+            writeMessage("Done\n", "success")
+        else:
+            writeMessage("Unexpected error: no stdout or stderr produced.\n", "error")
+    writeMessage("### Pipeline finished ###\n", "success")
 
 # Move up
 def up():
@@ -291,14 +312,13 @@ def openTree():
 
 ## Container for pipeline window control buttons
 controlFrame = Frame(master = mmFrame)
-controlFrame.config(background = "red")
 controlFrame.grid(row = 0, column = 1)
 
 showMeContentForTree = Button(master = controlFrame, text = "Add last command to pipeline", command = handleCommand)
 showMeContentForTree.grid(row = 1, column = 1, columnspan = 2, sticky = 'nesw')
 
 sPC_Value = IntVar() # Interger value for startingPointCheck
-startingPointCheck = Checkbutton(master = controlFrame, text = "Start from selected", variable = sPC_Value, onvalue=1, offvalue = 0, width = 15)
+startingPointCheck = Checkbutton(master = controlFrame, text = "From selected", variable = sPC_Value, onvalue=1, offvalue = 0, width = 15)
 startingPointCheck.grid(row = 2, column = 2, sticky = 'nesw')
 
 runButton = Button(master = controlFrame, text = "Run", command = runTree, width = 15)
