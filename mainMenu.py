@@ -1,7 +1,7 @@
 from winBuilder import *
 from os import path, makedirs, popen
 
-TREE_COMMAND_INDEX = 0 #Index for pipeline-tree widget, used to mark each command's key so multiple same commands can be in the tree
+TREE_COMMAND_INDEX = 0 #Index for pipeline-tree widget, used to mark each commands key so multiple same commands can be in the tree
 SAVE_PATH = "pipelines"
 
 # Create "pipelines" directory
@@ -36,12 +36,15 @@ def popupWig(master,widget,key):
     def doTheThing(key, master):
         global pipelineTreeContent
         windowValues = pipelineTreeContent.pullValues(key, master)
+        print(f'windowValues: {windowValues}')
         if not windowValues:
             return
         reqValues, optValues, key, rcVal = windowValues
         newWindow.destroy()
-        carryOutCommand(reqValues,optValues,key, rcVal)
+        if rcVal == 1:
+            carryOutCommand(reqValues,optValues,key, rcVal)
     newWindow = Toplevel(master)
+    newWindow.attributes('-topmost', 'true')
     newWindow.title("{}".format(key))
     global pipelineTreeContent
     pipelineTreeContent = winBuild(newWindow,widget,key)
@@ -146,8 +149,10 @@ def writeMessage(message, tag = ''):
 
 # Run single command
 def carryOutCommand(reqValues,optValues,key, rcVal = 0):
+    '''
     if rcVal == 0:
         return
+    '''
     flatWidgetList = [item for sublist in reqValues for item in sublist] + [item for sublist in optValues for item in sublist]
     finalCommand = "qiime " + key + ' ' + ' '.join(flatWidgetList)
     writeMessage("Running " + "qiime " + " ".join(flatWidgetList[:2]) + "...\n")
@@ -173,6 +178,8 @@ def runTree():
     """
     commandsInPipeline = []
     mainBranches = tree.get_children()
+    if not mainBranches:
+        return
     sP = 0 # Starting Point
     if sPC_Value.get() == 1:
         try:
@@ -207,7 +214,7 @@ def runTree():
         (stout, sterr) = process.communicate()
         #print("out: ", stout, "\nerr: ", sterr)
         if sterr:
-            writeMessage("{} ended in error. Check log.file for more info\n".format(' '.join(commandList[:3])), "error")
+            writeMessage("{} ended in an error. Check log.file for more info\n".format(' '.join(commandList[:3])), "error")
             saveError(sterr)
             break
         elif stout:
@@ -219,17 +226,23 @@ def runTree():
 # Move up
 def up():
     current = tree.selection()
+    while current not in tree.get_children():
+        current = tree.parent(current)
     if current:
         tree.move(current, tree.parent(current),tree.index(current)-1)
 # Move down
 def down():
     current = tree.selection()
+    while current not in tree.get_children():
+        current = tree.parent(current)
     if current:
         tree.move(current, tree.parent(current),tree.index(current)+1)
 
 # Delete selected
 def delete():
     current = tree.selection()
+    while current not in tree.get_children():
+        current = tree.parent(current)
     if current:
         tree.delete(current)
 
@@ -239,20 +252,23 @@ def deleteAll():
 
 # Save pipeline to file
 def saveTree():
+    mainBranches = tree.get_children()
+    if not mainBranches:
+        return
     saveFile = filedialog.asksaveasfile(mode = 'w', defaultextension = ".txt")
     if saveFile is None:
         return
-    mainBranches = tree.get_children()
     marker = False
     for commandIds in mainBranches:
-        saveFile.write(commandIds.split("$")[0] + "\n")
+        currentMainCommand = tree.item(commandIds.split("$")[0])['text']
+        saveFile.write(currentMainCommand + "\n")
         command = tree.get_children(commandIds)
         saveFile.write("Required:\n")
         for ids in command:
             parameter = tree.item(ids)
             if not parameter['values']:
                 marker = True
-                optionalParameters = tree.get_children(commandIds+"optional")
+                optionalParameters = tree.get_children(ids)
                 saveFile.write("\nOptional:\n")
                 for subIds in optionalParameters:
                     parameter = tree.item(subIds)
