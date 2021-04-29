@@ -91,11 +91,11 @@ class winBuild:
         for widg in self.reqWig:
             w = widg.getValue()
             if '' in w:
-                print("Fill all required spaces!")
-                # Reset the colour of widgets to default, then mark unfilled one as red
+                # Reset the color of widgets to default, then mark the first unfilled one as red
                 for i in self.reqWig: i.config(bg = "#f0f0f0")
                 self.reqWig[self.reqWig.index(widg)].config(bg = "red")
-                return False
+                self.reqValues.clear()
+                return
             self.reqValues.append(w)
         for widg in self.optWig:
             w = widg.getValue()
@@ -183,8 +183,9 @@ class importChoose(Frame):
         """Function for the button. Opens a dialog window where user can choose a directory
         """
         self.fVal = filedialog.askdirectory()
-        self.fText.delete(0.0,END)
-        self.fText.insert(0.0,self.fVal)
+        if self.fVal != '':
+            self.fText.delete(0.0,END)
+            self.fText.insert(0.0,self.fVal)
 
     def getValue(self):
         commandLabel,argument = self.cName,self.fText.get(0.0,END).strip()
