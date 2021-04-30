@@ -225,14 +225,14 @@ def runTree():
 
 # Move up
 def up():
-    current = tree.selection()
+    current = tree.selection()[0]
     while current not in tree.get_children():
         current = tree.parent(current)
     if current:
         tree.move(current, tree.parent(current),tree.index(current)-1)
 # Move down
 def down():
-    current = tree.selection()
+    current = tree.selection()[0]
     while current not in tree.get_children():
         current = tree.parent(current)
     if current:
@@ -240,7 +240,7 @@ def down():
 
 # Delete selected
 def delete():
-    current = tree.selection()
+    current = tree.selection()[0]
     while current not in tree.get_children():
         current = tree.parent(current)
     if current:
