@@ -149,17 +149,15 @@ def writeMessage(message, tag = ''):
 
 # Run single command
 def carryOutCommand(reqValues,optValues,key, rcVal = 0):
-    '''
-    if rcVal == 0:
-        return
+    ''' Command used by popup window to carry out a single command.
     '''
     flatWidgetList = [item for sublist in reqValues for item in sublist] + [item for sublist in optValues for item in sublist]
     finalCommand = "qiime " + key + ' ' + ' '.join(flatWidgetList)
-    writeMessage("Running " + "qiime " + " ".join(flatWidgetList[:2]) + "...\n")
+    writeMessage("Running " + "qiime " + key + "...\n")
     messageBox.update_idletasks()
     process = subprocess.Popen(finalCommand, stdout = subprocess.PIPE, stderr = subprocess.PIPE, shell = True)
     (stout, sterr) = process.communicate()
-    print("out: ", stout, "\nerr: ", sterr)
+    #print("out: ", stout, "\nerr: ", sterr)
     if sterr:
         writeMessage("Command ended in an error. Check log.file for more info\n", "error")
         saveError(sterr)
