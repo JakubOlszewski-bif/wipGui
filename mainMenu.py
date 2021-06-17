@@ -1,12 +1,12 @@
 from winBuilder import *
-from os import path, makedirs, popen
+from os import mkdir
 
 TREE_COMMAND_INDEX = 0 #Index for pipeline-tree widget, used to mark each commands key so multiple same commands can be in the tree
 SAVE_PATH = "pipelines"
 
 # Create "pipelines" directory
 try:
-    makedirs(SAVE_PATH)
+    mkdir(SAVE_PATH)
 except FileExistsError:
     pass
 
@@ -33,7 +33,9 @@ def popupWig(master,widget,key):
     :param key: name of the command
     :type key: str
     """
-    def doTheThing(key, master):
+    def checkThenRun(key, master):
+        '''If all required values in popup window are filled, run carryOutCommand() with collected values and close window. Otherwise, do nothing.
+        '''
         global pipelineTreeContent
         windowValues = pipelineTreeContent.pullValues(key, master)
         print(f'windowValues: {windowValues}')
@@ -48,7 +50,7 @@ def popupWig(master,widget,key):
     newWindow.title("{}".format(key))
     global pipelineTreeContent
     pipelineTreeContent = winBuild(newWindow,widget,key)
-    proceedButton = Button(newWindow,text='Proceed',command=lambda things = (key,master): doTheThing(things[0],things[1]))
+    proceedButton = Button(newWindow,text='Proceed',command=lambda key_master_pair = (key,master): checkThenRun(key_master_pair[0],key_master_pair[1]))
     proceedButton.pack()
 
 
@@ -78,7 +80,7 @@ mmFrame.pack()
 ### Pipeline section ###
 
 # TreeView set-up
-tree = ttk.Treeview(mmFrame, columns = ("Stuff"))
+tree = ttk.Treeview(mmFrame, columns = ("Column"))
 tree.heading("#0", text = "Command")
 tree.heading("#1", text = "Content")
 tree.grid(row = 0, column = 0)
@@ -182,6 +184,8 @@ def runTree():
     if sPC_Value.get() == 1:
         try:
             currentSel = tree.focus()
+            if not currentSel:
+                return
             # Search for main branch
             while currentSel not in mainBranches:
                 currentSel = tree.parent(currentSel)
@@ -223,14 +227,20 @@ def runTree():
 
 # Move up
 def up():
-    current = tree.selection()[0]
+    try:
+        current = tree.selection()[0]
+    except IndexError:
+        return
     while current not in tree.get_children():
         current = tree.parent(current)
     if current:
         tree.move(current, tree.parent(current),tree.index(current)-1)
 # Move down
 def down():
-    current = tree.selection()[0]
+    try:
+        current = tree.selection()[0]
+    except IndexError:
+        return
     while current not in tree.get_children():
         current = tree.parent(current)
     if current:
@@ -238,7 +248,10 @@ def down():
 
 # Delete selected
 def delete():
-    current = tree.selection()[0]
+    try:
+        current = tree.selection()[0]
+    except IndexError:
+        return
     while current not in tree.get_children():
         current = tree.parent(current)
     if current:
@@ -328,8 +341,8 @@ def openTree():
 controlFrame = Frame(master = mmFrame)
 controlFrame.grid(row = 0, column = 1)
 
-showMeContentForTree = Button(master = controlFrame, text = "Add last command to pipeline", command = handleCommand)
-showMeContentForTree.grid(row = 1, column = 1, columnspan = 2, sticky = 'nesw')
+addLastCommandToPipeline = Button(master = controlFrame, text = "Add last command to pipeline", command = handleCommand)
+addLastCommandToPipeline.grid(row = 1, column = 1, columnspan = 2, sticky = 'nesw')
 
 sPC_Value = IntVar() # Interger value for startingPointCheck
 startingPointCheck = Checkbutton(master = controlFrame, text = "From selected", variable = sPC_Value, onvalue=1, offvalue = 0, width = 15)
